@@ -153,7 +153,7 @@ class AlphaConnectPlayer(Player):
     def load_model(model_path, batch_size):
         model = load_model(model_path)
         # first prediction takes more time
-        model.predict(np.array([State.empty().to_numpy()]))
+        model.predict(np.array([State.empty().to_numpy()]).astype(float))
         return BatchEvaluator(model, batch_size)
 
     def set_root_node(self, state: State = None):

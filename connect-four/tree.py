@@ -255,7 +255,7 @@ class BatchEvaluator(object):
 
         if len(self.queue) >= self.batch_size:
             nodes, callbacks = zip(*self.queue)
-            array = np.concatenate(list(map(lambda node: node.state.to_numpy(batch=True), nodes)))
+            array = np.concatenate(list(map(lambda node: node.state.to_numpy(batch=True), nodes))).astype(float)
             pred_actions, pred_value = self.model.predict(array)
 
             for i, callback in enumerate(callbacks):

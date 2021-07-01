@@ -303,7 +303,7 @@ class State(_State):
 
         if batch:
             arr = np.array([arr, ])
-        return np.array(arr)
+        return np.array(arr).astype(float)
 
     @property
     def free_lines(self):
