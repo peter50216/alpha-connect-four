@@ -22,31 +22,46 @@ def _position_to_lines():
 
 
 def _lines():
-    return dict(enumerate(_lines_on_one_axis() + _lines_on_one_diagonal() + _lines_on_two_diagonals()))
+    return dict(
+        enumerate(_lines_on_one_axis() + _lines_on_one_diagonal() +
+                  _lines_on_two_diagonals()))
 
 
 def _lines_on_one_axis():
     base_solutions = [[(pos1, pos2, pos3) for pos3 in range(FOUR)]
                       for pos1, pos2 in product(range(FOUR), range(FOUR))]
-    all_solutions = [tuple(sorted(Position(pos[i], pos[j], pos[k]) for pos in solution))
-                     for solution in base_solutions for i, j, k in permutations(range(3))]
+    all_solutions = [
+        tuple(sorted(Position(pos[i], pos[j], pos[k]) for pos in solution))
+        for solution in base_solutions for i, j, k in permutations(range(3))
+    ]
     return list(set(all_solutions))
 
 
 def _lines_on_one_diagonal():
     base_solutions = [[(pos1, pos2, pos2) for pos2 in range(FOUR)] for pos1 in range(FOUR)] + \
                      [[(pos1, pos2, FOUR - 1 - pos2) for pos2 in range(FOUR)] for pos1 in range(FOUR)]
-    all_solutions = [tuple(sorted(Position(pos[i], pos[j], pos[k]) for pos in solution))
-                     for solution in base_solutions for i, j, k in permutations(range(3))]
+    all_solutions = [
+        tuple(sorted(Position(pos[i], pos[j], pos[k]) for pos in solution))
+        for solution in base_solutions for i, j, k in permutations(range(3))
+    ]
     return list(set(all_solutions))
 
 
 def _lines_on_two_diagonals():
     all_solutions = [
         tuple(sorted(Position(pos1, pos1, pos1) for pos1 in range(FOUR))),
-        tuple(sorted(Position(pos1, FOUR - 1 - pos1, pos1) for pos1 in range(FOUR))),
-        tuple(sorted(Position(FOUR - 1 - pos1, pos1, pos1) for pos1 in range(FOUR))),
-        tuple(sorted(Position(FOUR - 1 - pos1, FOUR - 1 - pos1, pos1) for pos1 in range(FOUR)))
+        tuple(
+            sorted(
+                Position(pos1, FOUR - 1 - pos1, pos1)
+                for pos1 in range(FOUR))),
+        tuple(
+            sorted(
+                Position(FOUR - 1 - pos1, pos1, pos1)
+                for pos1 in range(FOUR))),
+        tuple(
+            sorted(
+                Position(FOUR - 1 - pos1, FOUR - 1 - pos1, pos1)
+                for pos1 in range(FOUR)))
     ]
     return all_solutions
 
@@ -85,7 +100,10 @@ class Rotation(Enum):
 
     @classmethod
     def iter_rotations(cls):
-        yield from [Rotation.NO, Rotation.QUARTER, Rotation.HALF, Rotation.THREE_QUARTER]
+        yield from [
+            Rotation.NO, Rotation.QUARTER, Rotation.HALF,
+            Rotation.THREE_QUARTER
+        ]
 
 
 _Augmentation = NamedTuple('Augmentation', [
@@ -169,20 +187,18 @@ class Position(_Position):
         return Action(self.x, self.y)
 
 
-_State = NamedTuple('State', [
-    ('stones', Dict[Position, Color]),
-    ('next_color', Color),
-    ('pin_height', Dict[Action, int]),
-    ('allowed_actions', Set[Action]),
-    ('number_of_stones', int),
-    ('brown_lines', Dict[int, int]),
-    ('white_lines', Dict[int, int]),
-    ('brown_lines_free', Dict[Position, int]),
-    ('white_lines_free', Dict[Position, int]),
-    ('brown_max_line', Dict[Position, int]),
-    ('white_max_line', Dict[Position, int]),
-    ('winner', Union[Color, None])
-])
+_State = NamedTuple('State', [('stones', Dict[Position, Color]),
+                              ('next_color', Color),
+                              ('pin_height', Dict[Action, int]),
+                              ('allowed_actions', Set[Action]),
+                              ('number_of_stones', int),
+                              ('brown_lines', Dict[int, int]),
+                              ('white_lines', Dict[int, int]),
+                              ('brown_lines_free', Dict[Position, int]),
+                              ('white_lines_free', Dict[Position, int]),
+                              ('brown_max_line', Dict[Position, int]),
+                              ('white_max_line', Dict[Position, int]),
+                              ('winner', Union[Color, None])])
 
 
 class State(_State):
@@ -203,21 +219,44 @@ class State(_State):
         winner = None
         brown_lines = {line_i: 0 for line_i in cls.LINES.keys()}
         white_lines = {line_i: 0 for line_i in cls.LINES.keys()}
-        brown_lines_free = {pos: len(cls.POSITION_TO_LINES[pos]) for pos in Position.iter_positions()}
-        white_lines_free = {pos: len(cls.POSITION_TO_LINES[pos]) for pos in Position.iter_positions()}
+        brown_lines_free = {
+            pos: len(cls.POSITION_TO_LINES[pos])
+            for pos in Position.iter_positions()
+        }
+        white_lines_free = {
+            pos: len(cls.POSITION_TO_LINES[pos])
+            for pos in Position.iter_positions()
+        }
         brown_max_line = {pos: 0 for pos in Position.iter_positions()}
         white_max_line = {pos: 0 for pos in Position.iter_positions()}
-        return cls(stones, next_color, pin_height, allowed_actions, number_of_stones, brown_lines, white_lines,
-                   brown_lines_free, white_lines_free, brown_max_line, white_max_line, winner)
+        return cls(stones, next_color, pin_height, allowed_actions,
+                   number_of_stones, brown_lines, white_lines,
+                   brown_lines_free, white_lines_free, brown_max_line,
+                   white_max_line, winner)
+
+    @classmethod
+    def from_board(cls, board, player) -> 'State':
+        s = cls.empty()
+        for x in range(FOUR):
+            for y in range(FOUR):
+                for z in range(len(board[x][y])):
+                    s = s._replace(next_color=Color.WHITE if board[x][y][z] ==
+                                   0 else Color.BROWN)
+                    s = s.take_action(Action(x, y))
+        s = s._replace(next_color=Color.WHITE if player == 0 else Color.BROWN)
+        return s
 
     def take_action(self, action: Action) -> 'State':
         assert action in self.allowed_actions
         assert not self.has_winner()
 
-        stones = self.stones.copy()  # does not deepcopy keys, but these never have to change
+        stones = self.stones.copy(
+        )  # does not deepcopy keys, but these never have to change
         next_color = self.next_color
-        pin_height = self.pin_height.copy()  # does not deepcopy keys, but these never have to change
-        allowed_actions = self.allowed_actions.copy()  # does not deepcopy items, but these never have to change
+        pin_height = self.pin_height.copy(
+        )  # does not deepcopy keys, but these never have to change
+        allowed_actions = self.allowed_actions.copy(
+        )  # does not deepcopy items, but these never have to change
         number_of_stones = self.number_of_stones
         brown_lines = self.brown_lines.copy()
         white_lines = self.white_lines.copy()
@@ -227,7 +266,8 @@ class State(_State):
         white_max_line = self.white_max_line.copy()
         winner = self.winner
 
-        position = Position.from_action_and_height(action, self.pin_height[action])
+        position = Position.from_action_and_height(action,
+                                                   self.pin_height[action])
         stones[position] = self.next_color
         next_color = next_color.other()
         pin_height[action] += 1
@@ -239,7 +279,8 @@ class State(_State):
             if self.next_color == Color.BROWN:
                 brown_lines[line_i] += 1
                 for line_pos in self.LINES[line_i]:
-                    brown_max_line[line_pos] = max(brown_lines[line_i], brown_max_line[line_pos])
+                    brown_max_line[line_pos] = max(brown_lines[line_i],
+                                                   brown_max_line[line_pos])
                     if brown_lines[line_i] == 1:
                         white_lines_free[line_pos] -= 1
                 if brown_lines[line_i] == FOUR:
@@ -247,14 +288,17 @@ class State(_State):
             else:
                 white_lines[line_i] += 1
                 for line_pos in self.LINES[line_i]:
-                    white_max_line[line_pos] = max(white_lines[line_i], white_max_line[line_pos])
+                    white_max_line[line_pos] = max(white_lines[line_i],
+                                                   white_max_line[line_pos])
                     if white_lines[line_i] == 1:
                         brown_lines_free[line_pos] -= 1
                 if white_lines[line_i] == FOUR:
                     winner = Color.WHITE
 
-        return State(stones, next_color, pin_height, allowed_actions, number_of_stones, brown_lines,
-                     white_lines, brown_lines_free, white_lines_free, brown_max_line, white_max_line, winner)
+        return State(stones, next_color, pin_height, allowed_actions,
+                     number_of_stones, brown_lines, white_lines,
+                     brown_lines_free, white_lines_free, brown_max_line,
+                     white_max_line, winner)
 
     def take_actions(self, actions: List[Action]) -> 'State':
         state = self
@@ -263,7 +307,8 @@ class State(_State):
         return state
 
     def __str__(self):
-        state_array = [[['?' for _ in range(FOUR)] for _ in range(FOUR)] for _ in range(FOUR)]
+        state_array = [[['?' for _ in range(FOUR)] for _ in range(FOUR)]
+                       for _ in range(FOUR)]
         for (x, y, z), stone in self.stones.items():
             state_array[z][y][x] = str(stone)
         for pin in Action.iter_actions():
@@ -272,17 +317,21 @@ class State(_State):
                 state_array[pin_height][pin.y][pin.x] = '_'
         for pos, line_length in self.max_lines[1].items():
             if line_length == FOUR - 1 and self.stones[pos] == Color.NONE:
-                state_array[pos.z][pos.y][pos.x] = colored(state_array[pos.z][pos.y][pos.x], 'red', attrs=['bold'])
+                state_array[pos.z][pos.y][pos.x] = colored(
+                    state_array[pos.z][pos.y][pos.x], 'red', attrs=['bold'])
         for pos, line_length in self.max_lines[0].items():
             if line_length == FOUR - 1 and self.stones[pos] == Color.NONE:
-                state_array[pos.z][pos.y][pos.x] = colored(state_array[pos.z][pos.y][pos.x], 'green', attrs=['bold'])
-        rows = [[' '.join(row) for row in layer] for layer in reversed(state_array)]
+                state_array[pos.z][pos.y][pos.x] = colored(
+                    state_array[pos.z][pos.y][pos.x], 'green', attrs=['bold'])
+        rows = [[' '.join(row) for row in layer]
+                for layer in reversed(state_array)]
         layers = ['\n'.join(layer_rows) for layer_rows in rows]
         board = '\n\n'.join(layers)
         return board
 
     def is_end_of_game(self):
-        is_full = all(stone is not Color.NONE for stone in self.stones.values())
+        is_full = all(stone is not Color.NONE
+                      for stone in self.stones.values())
         return self.winner is not None or is_full
 
     def has_winner(self):
@@ -290,19 +339,23 @@ class State(_State):
 
     def to_numpy(self, augmentation: Augmentation = None, batch=False):
         if augmentation is None:
-            arr = [[[self._encode_position(Position(x, y, z))
-                     for z in range(FOUR)]
-                    for y in range(FOUR)]
-                   for x in range(FOUR)]
+            arr = [[[
+                self._encode_position(Position(x, y, z)) for z in range(FOUR)
+            ] for y in range(FOUR)] for x in range(FOUR)]
         else:
-            mapping = {position.augment(augmentation): position for position in Position.iter_positions()}
-            arr = [[[self._encode_position(mapping[Position(x, y, z)])
-                     for z in range(FOUR)]
-                    for y in range(FOUR)]
-                   for x in range(FOUR)]
+            mapping = {
+                position.augment(augmentation): position
+                for position in Position.iter_positions()
+            }
+            arr = [[[
+                self._encode_position(mapping[Position(x, y, z)])
+                for z in range(FOUR)
+            ] for y in range(FOUR)] for x in range(FOUR)]
 
         if batch:
-            arr = np.array([arr, ])
+            arr = np.array([
+                arr,
+            ])
         return np.array(arr).astype(float)
 
     @property
@@ -335,18 +388,7 @@ class State(_State):
         my_lines_free, other_lines_block = self.free_lines
         my_max_line, other_max_line = self.max_lines
 
-        return (
-            stone == self.next_color,
-            stone == self.next_color.other(),
-            reachable,
-            corner,
-            side,
-            middle,
-            bottom,
-            top,
-            middle_z,
-            my_lines_free[pos],
-            other_lines_block[pos],
-            my_max_line[pos],
-            other_max_line[pos]
-        )
+        return (stone == self.next_color, stone == self.next_color.other(),
+                reachable, corner, side, middle, bottom, top, middle_z,
+                my_lines_free[pos], other_lines_block[pos], my_max_line[pos],
+                other_max_line[pos])
